@@ -38,12 +38,10 @@ contract Account {
         Accounts storage user = accounts[msgSender];
 
         if (
-            (keccak256(abi.encodePacked((user.username))) !=
-                keccak256(abi.encodePacked(("")))) ||
-            usernameExists[user.username]
+            !(compareUsername(user.username, "")) ||
+            usernameExists[user.username] ||
+            validateName(user.username)
         ) revert InvalidAccount(msgSender, user.username);
-
-        if (validateName(user.username)) revert InvalidUsername(user.username);
 
         usernameExists[username] = true;
 
@@ -65,11 +63,10 @@ contract Account {
         Accounts storage user = accounts[msgSender];
 
         if (
-            (keccak256(abi.encodePacked((user.username))) ==
-                keccak256(abi.encodePacked(("")))) || usernameExists[username]
+            (compareUsername(user.username, "")) ||
+            usernameExists[username] ||
+            validateName(user.username)
         ) revert InvalidAccount(msgSender, username);
-
-        if (validateName(user.username)) revert InvalidUsername(user.username);
 
         usernameExists[username] = true;
         usernameExists[user.username] = false;
@@ -88,6 +85,15 @@ contract Account {
         return accounts[userAddress];
     }
 
+    function compareUsername(
+        string memory a,
+        string memory b
+    ) public pure returns (bool) {
+        return
+            keccak256(abi.encodePacked((toLower(a)))) ==
+            keccak256(abi.encodePacked((toLower(b))));
+    }
+
     function validateName(string memory str) public pure returns (bool) {
         bytes memory b = bytes(str);
         if (b.length < 1) return false;
@@ -104,5 +110,19 @@ contract Account {
         }
 
         return true;
+    }
+
+    function toLower(string memory str) public pure returns (string memory) {
+        bytes memory bStr = bytes(str);
+        bytes memory bLower = new bytes(bStr.length);
+        for (uint256 i = 0; i < bStr.length; i++) {
+            // Uppercase character
+            if ((uint8(bStr[i]) >= 65) && (uint8(bStr[i]) <= 90)) {
+                bLower[i] = bytes1(uint8(bStr[i]) + 32);
+            } else {
+                bLower[i] = bStr[i];
+            }
+        }
+        return string(bLower);
     }
 }
