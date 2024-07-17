@@ -1,97 +1,109 @@
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.26;
 
-error InvalidAccount(address userAddress, string username);
-error InvalidUsername(string username);
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Account {
-    struct Accounts {
-        string username;
+contract Account is ERC721Enumerable {
+    struct UserInfo {
+        string userName;
         string displayName;
-        string imageHash;
         string bio;
+        string image;
     }
+    // Mapping from user address to user info, only displayName and Bio updatable
+    mapping(address => UserInfo) public userInfo;
 
-    mapping(address => Accounts) public accounts;
-    mapping(string => bool) public usernameExists;
+    // Mapping from address to username
+    mapping(address => string) public userName;
 
+    // Mapping if certain name string has already been reserved
+    mapping(string => bool) private _nameReserved;
+
+    // event AccountCreated(string newName);
+    // event BioChange(string bio);
+    event PostCreated(
+        uint id,
+        address sender,
+        string uri,
+        uint8 buyStatus,
+        uint256 sellValue,
+        string metadata
+    );
+    event InfoChanged(string displayName, string bio, string image);
     event AccountCreated(
-        string username,
+        address user,
+        string userName,
         string displayName,
-        string imageHash,
-        string bio
+        string bio,
+        string image
     );
-    event AccountUpdated(
-        string username,
-        string displayName,
-        string imageHash,
-        string bio
+    event PostDetailsChanged(
+        uint256 postId,
+        uint8 status,
+        uint256 price,
+        uint256 bidDuration
     );
+    event PostRewardClaimed(address user, uint256 postId, uint256 reward);
+    event BiddableTokenPurchased(
+        address oldOwner,
+        address newOwner,
+        uint256 amount,
+        uint256 id
+    );
+    event BidPlaced(address bidder, uint256 postId, uint256 bidAmount);
+    event PostSold(address from, address to, uint256 amount, uint256 id);
 
-    function create(
-        string memory username,
-        string memory displayName,
-        string memory imageHash,
-        string memory bio
-    ) public {
-        address msgSender = msg.sender;
-        Accounts storage user = accounts[msgSender];
+    constructor(
+        string memory _name,
+        string memory _symbol
+    ) ERC721(_name, _symbol) {}
 
-        if (
-            !(compareUsername(user.username, "")) ||
-            usernameExists[user.username] ||
-            validateName(user.username)
-        ) revert InvalidAccount(msgSender, user.username);
-
-        usernameExists[username] = true;
-
-        user.username = username;
-        user.bio = bio;
-        user.displayName = displayName;
-        user.imageHash = imageHash;
-
-        emit AccountCreated(username, displayName, imageHash, bio);
+    function updateUserInfo(UserInfo memory _userInfo) external {
+        address user = msg.sender;
+        require(bytes(userName[user]).length != 0, "Undefined user");
+        require(
+            keccak256(abi.encodePacked(userInfo[user].userName)) ==
+                keccak256(abi.encodePacked(_userInfo.userName)),
+            "Username must be unique"
+        );
+        userInfo[user] = _userInfo;
+        emit InfoChanged(_userInfo.displayName, _userInfo.bio, _userInfo.image);
     }
 
-    function update(
-        string memory username,
-        string memory displayName,
-        string memory imageHash,
-        string memory bio
-    ) public {
-        address msgSender = msg.sender;
-        Accounts storage user = accounts[msgSender];
+    function createAccount(UserInfo memory _userInfo) public virtual {
+        address user = msg.sender;
+        require(bytes(userName[user]).length == 0, "Account already created");
 
-        if (
-            (compareUsername(user.username, "")) ||
-            usernameExists[username] ||
-            validateName(user.username)
-        ) revert InvalidAccount(msgSender, username);
+        require(validateName(_userInfo.userName), "Not a valid new name");
+        require(!isNameReserved(_userInfo.userName), "Username already exists");
+        _nameReserved[toLower(_userInfo.userName)] = true;
+        userInfo[user] = _userInfo;
 
-        usernameExists[username] = true;
-        usernameExists[user.username] = false;
-
-        user.username = username;
-        user.bio = bio;
-        user.displayName = displayName;
-        user.imageHash = imageHash;
-
-        emit AccountUpdated(username, displayName, imageHash, bio);
+        userName[user] = _userInfo.userName;
+        emit AccountCreated(
+            user,
+            _userInfo.userName,
+            _userInfo.displayName,
+            _userInfo.bio,
+            _userInfo.image
+        );
     }
 
-    function getAccount(
-        address userAddress
-    ) public view returns (Accounts memory) {
-        return accounts[userAddress];
+    /**
+     * @dev Returns if the name has been reserved.
+     */
+    function isNameReserved(
+        string memory nameString
+    ) public view returns (bool) {
+        return _nameReserved[toLower(nameString)];
     }
 
-    function compareUsername(
-        string memory a,
-        string memory b
-    ) public pure returns (bool) {
-        return
-            keccak256(abi.encodePacked((toLower(a)))) ==
-            keccak256(abi.encodePacked((toLower(b))));
+    function isAddressReserved(
+        address _address
+    ) public view returns (string memory) {
+        return userName[_address];
     }
 
     function validateName(string memory str) public pure returns (bool) {
@@ -112,6 +124,9 @@ contract Account {
         return true;
     }
 
+    /**
+     * @dev Converts the string to lowercase
+     */
     function toLower(string memory str) public pure returns (string memory) {
         bytes memory bStr = bytes(str);
         bytes memory bLower = new bytes(bStr.length);
