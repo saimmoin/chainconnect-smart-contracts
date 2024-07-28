@@ -21,6 +21,14 @@ contract Account is ERC721Enumerable {
     // Mapping if certain name string has already been reserved
     mapping(string => bool) private _nameReserved;
 
+    modifier validUser() {
+        require(
+            bytes(userInfo[msg.sender].userName).length != 0,
+            "User name not set"
+        );
+        _;
+    }
+
     // event AccountCreated(string newName);
     // event BioChange(string bio);
     event PostCreated(
