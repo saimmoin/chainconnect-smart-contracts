@@ -3,14 +3,29 @@ pragma solidity 0.8.26;
 
 import "./Account.sol";
 import "./IChainConnect.sol";
+import "./Verification.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+    function mint(address _to, uint _amount) external;
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+}
 
 error NotForSale();
 error NoBidDuration();
 error NoSellValue();
 error URINotEmpty();
 
-contract ChainConnect is Account, IChainConnect {
+contract ChainConnect is Account, IChainConnect, Verification {
     using Strings for uint256;
 
     /**
@@ -33,18 +48,26 @@ contract ChainConnect is Account, IChainConnect {
     mapping(uint256 => Post) public posts;
     mapping(uint256 => string) private _tokenURIs;
     mapping(uint256 => address) private _tokenOwners;
-    mapping(uint256 => LastBidder) private _lastBidders;
+    mapping(uint256 => LastBidder) public _lastBidders;
+    mapping(uint256 => uint256) public idToLikes;
+    mapping(address => uint256) public userToReward;
 
     uint256 public tokenID = 1;
     uint256 public ONE = 1 ether;
     address public admin;
+    uint256 public REWARD_FACTOR;
+    IERC20 public rewardToken;
+
+    uint256 private _claimId;
 
     constructor(
         string memory name,
         string memory symbol,
-        address _admin
+        address _admin,
+        IERC20 _rewardToken
     ) Account(name, symbol) {
         admin = _admin;
+        rewardToken = _rewardToken;
     }
 
     modifier onlyAdmin() {
@@ -54,6 +77,12 @@ contract ChainConnect is Account, IChainConnect {
 
     function changeAdmin(address _admin) external onlyAdmin validUser {
         emit AdminChanged(admin, admin = _admin, msg.sender);
+    }
+
+    function changeRewardToken(
+        IERC20 _rewardToken
+    ) external onlyAdmin validUser {
+        rewardToken = _rewardToken;
     }
 
     function mint(
@@ -166,5 +195,67 @@ contract ChainConnect is Account, IChainConnect {
         }
 
         return super.tokenURI(tokenId);
+    }
+
+    function claimBid(uint256 _postId) external validUser {
+        require(_postId <= tokenID && _postId > 0, "ERC721: invalid token ID");
+        require(posts[_postId].buyStatus == 2, "Not for bidding");
+        require(
+            _lastBidders[_postId].bidder == msg.sender ||
+                msg.sender == _tokenOwners[_postId],
+            "Not your bid"
+        );
+
+        (bool sent, ) = _tokenOwners[_postId].call{
+            value: _lastBidders[_postId].bidValue
+        }("");
+        require(sent, "Failed to send Ether");
+
+        _safeTransfer(
+            _tokenOwners[_postId],
+            _lastBidders[_postId].bidder,
+            _postId
+        );
+        _lastBidders[_postId] = LastBidder(address(0), 0);
+
+        posts[_postId].buyStatus = 3;
+        posts[_postId].bidDuration = 0;
+        posts[_postId].sellValue = 0;
+        _tokenOwners[_postId] = _lastBidders[_postId].bidder;
+        emit PostSold(
+            _lastBidders[_postId].bidder,
+            _lastBidders[_postId].bidValue,
+            _postId
+        );
+    }
+
+    function setRewardFactor(uint256 _rewardFactor) external onlyAdmin {
+        REWARD_FACTOR = _rewardFactor;
+    }
+
+    function calculateRewards(
+        uint256 likes,
+        uint256 postId
+    ) public view returns (uint256) {
+        uint restCount = likes - idToLikes[postId];
+        return (restCount * REWARD_FACTOR) / 100;
+    }
+
+    function claimReward(
+        uint256 likes,
+        uint256 postId,
+        bytes memory signature
+    ) external {
+        require(postId <= tokenID && postId > 0, "ERC721: invalid token ID");
+        require(_tokenOwners[postId] == msg.sender, "You are not the owner");
+        require(
+            verify(_msgSender(), likes, _claimId, signature),
+            "Verification failed"
+        );
+        uint256 rewards = calculateRewards(likes, postId);
+        userToReward[msg.sender] += rewards;
+        idToLikes[postId] = likes;
+        rewardToken.mint(msg.sender, rewards);
+        emit ClaimReward(msg.sender, rewards);
     }
 }
