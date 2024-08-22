@@ -10,7 +10,7 @@ module.exports = {
   networks: {
     aurora: {
       url: "https://testnet.aurora.dev",
-      accounts: ["YOUR PRIVATE KEY"],
+      accounts: ["YOUR PRIVATE KEY !"],
     },
   },
   etherscan: {
