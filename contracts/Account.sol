@@ -31,14 +31,6 @@ contract Account is ERC721Enumerable {
 
     // event AccountCreated(string newName);
     // event BioChange(string bio);
-    event PostCreated(
-        uint id,
-        address sender,
-        string uri,
-        uint8 buyStatus,
-        uint256 sellValue,
-        string metadata
-    );
     event InfoChanged(string displayName, string bio, string image);
     event AccountCreated(
         address user,
@@ -47,21 +39,6 @@ contract Account is ERC721Enumerable {
         string bio,
         string image
     );
-    event PostDetailsChanged(
-        uint256 postId,
-        uint8 status,
-        uint256 price,
-        uint256 bidDuration
-    );
-    event PostRewardClaimed(address user, uint256 postId, uint256 reward);
-    event BiddableTokenPurchased(
-        address oldOwner,
-        address newOwner,
-        uint256 amount,
-        uint256 id
-    );
-    event BidPlaced(address bidder, uint256 postId, uint256 bidAmount);
-    event PostSold(address from, address to, uint256 amount, uint256 id);
 
     constructor(
         string memory _name,

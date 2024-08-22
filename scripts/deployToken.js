@@ -5,17 +5,16 @@ const { ethers } = require("hardhat");
 async function main() {
   const provider = ethers.provider;
 
-  const [owner] = await ethers.getSigners();
+  const [alice] = await ethers.getSigners();
 
-  // Get owner wallet's ethers balance
-  let ownerBalance = await provider.getBalance(owner.address);
-  console.log("Owner Balance: ", ethers.utils.formatEther(ownerBalance));
+  // Get alice wallet's ethers balance
+  let aliceBalance = await provider.getBalance(alice.address);
+  console.log("Owner Balance: ", ethers.utils.formatEther(aliceBalance));
 
-
-//   const ChainConnectToken = await ethers.getContractFactory("ChainConnectToken");
-//   const chainConnectToken = await ChainConnectToken.deploy();
-//   await chainConnectToken.deployed();
-//   console.log("Contract Deployed To: ", chainConnectToken.address);
+  const ChainConnectToken = await ethers.getContractFactory("ChainConnectToken", alice);
+  const chainConnectToken = await ChainConnectToken.deploy();
+  await chainConnectToken.deployed();
+  console.log("Contract Deployed To: ", chainConnectToken.address);
 }
 
 const runMain = async () => {

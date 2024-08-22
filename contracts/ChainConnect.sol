@@ -6,24 +6,6 @@ import "./IChainConnect.sol";
 import "./Verification.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-interface IERC20 {
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
-    function mint(address _to, uint _amount) external;
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
-}
-
-error NotForSale();
-error NoBidDuration();
-error NoSellValue();
-error URINotEmpty();
 
 contract ChainConnect is Account, IChainConnect, Verification {
     using Strings for uint256;
@@ -109,6 +91,7 @@ contract ChainConnect is Account, IChainConnect, Verification {
             _buyStatus
         );
         tokenID += 1;
+        emit PostCreated(msg.sender, tokenID);
     }
 
     function buyPost(uint256 _postId) external payable validUser {
@@ -124,6 +107,8 @@ contract ChainConnect is Account, IChainConnect, Verification {
 
         posts[_postId].sellValue = 0;
         posts[_postId].buyStatus = 2;
+
+        emit PostBought(msg.sender, msg.value, _postId);
     }
 
     function bidPost(uint256 _postId) external payable validUser {
@@ -144,6 +129,7 @@ contract ChainConnect is Account, IChainConnect, Verification {
         }
 
         _lastBidders[_postId] = LastBidder(msg.sender, msg.value);
+        emit PostBid(msg.sender, msg.value, _postId);
     }
 
     function changePost(
@@ -156,6 +142,7 @@ contract ChainConnect is Account, IChainConnect, Verification {
         post.bidDuration = _bidDuration;
         post.sellValue = _sellValue;
         post.buyStatus = _buyStatus;
+        emit PostChanged(_postId, _bidDuration, _sellValue, _buyStatus);
     }
 
     function _setTokenURI(
@@ -170,7 +157,7 @@ contract ChainConnect is Account, IChainConnect, Verification {
         _tokenURIs[_tokenId] = _tokenURI;
     }
 
-    function _exists(uint256 _tokenId) internal view virtual returns (bool) {
+    function _exists(uint256 _tokenId) internal view virtual override returns (bool) {
         require(_tokenId <= tokenID, "ERC721: invalid token ID");
         return true;
     }
@@ -211,7 +198,7 @@ contract ChainConnect is Account, IChainConnect, Verification {
         }("");
         require(sent, "Failed to send Ether");
 
-        _safeTransfer(
+        _transfer(
             _tokenOwners[_postId],
             _lastBidders[_postId].bidder,
             _postId
@@ -256,6 +243,6 @@ contract ChainConnect is Account, IChainConnect, Verification {
         userToReward[msg.sender] += rewards;
         idToLikes[postId] = likes;
         rewardToken.mint(msg.sender, rewards);
-        emit ClaimReward(msg.sender, rewards);
+        emit RewardClaimed(msg.sender, rewards);
     }
 }

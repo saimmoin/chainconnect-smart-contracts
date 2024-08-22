@@ -1,15 +1,21 @@
 /** @format */
 
 require("@nomiclabs/hardhat-waffle");
+require("@nomicfoundation/hardhat-verify");
 
 module.exports = {
-  solidity: "0.8.26",
+  solidity: { version: "0.8.26", settings: { optimizer: { enabled: true, runs: 200 } } },
   defaultNetwork: "hardhat",
 
   networks: {
-    mumbai: {
-      url: "https://polygon-mumbai.g.alchemy.com/v2/OVZbMpDeon6wu0xPYvGvm-t3_6jDTXjm",
-      accounts: ["5468c80fffe3489ec1499cf8284a3ca42f238b43f484e44a256a27fb335c2fea"],
+    aurora: {
+      url: "https://testnet.aurora.dev",
+      accounts: ["YOUR PRIVATE KEY"],
+    },
+  },
+  etherscan: {
+    apiKey: {
+      auroraTestnet: "MD23ZTR2YBBUSYABQK1ZJK4ZBPSQ86B3V2",
     },
   },
 };

@@ -1,0 +1,1 @@
+module.exports = ["Chain Connect", "CC", "0x26535f1847ed844C9b218b4DB46e199111F8a58b", "0x8586f51864021FcDBaaBbcF0dA566F23c9B3c7A3"];
